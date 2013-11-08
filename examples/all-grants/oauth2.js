@@ -121,7 +121,12 @@ server.exchange(oauth2orize.exchange.password(function(client, username, passwor
             var token = utils.uid(256);
             db.accessTokens.save(token, user.id, client.clientId, function(err) {
                 if (err) { return done(err); }
-                done(null, token);
+
+                var refreshToken = utils.uid(256);
+                db.refreshTokens.save(refreshToken, user.id, client.clientId, function(err) {
+                  if (err) { return done(err); }
+                  done(null, token, refreshToken);
+                });
             });
         });
     });
@@ -150,6 +155,24 @@ server.exchange(oauth2orize.exchange.clientCredentials(function(client, scope, d
             done(null, token);
         });
     });
+}));
+
+// Exchange the refresh token to obtain an access token.  The callback accepts the
+// `client`, which is exchanging a `refreshToken` previously issued by the server
+// for verification. If these values are validated, the application issues an 
+// access token on behalf of the user who authorized the code.
+
+server.exchange(oauth2orize.exchange.refreshToken(function(client, refreshToken, scope, done) {
+  db.refreshTokens.find(refreshToken, function(err, token) {
+    if(err) { return done(err);  }
+    if(!token) { return done(null, false); }
+
+    var token = utils.uid(256);
+    db.accessTokens.save(token, token.userID, token.clientID, function(err) {
+      if (err) { return done(err); }
+      done(null, token);
+    });
+  });
 }));
 
 // user authorization endpoint
